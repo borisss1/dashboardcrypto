@@ -29,7 +29,7 @@ currency = st.sidebar.selectbox("Quote Currency", ["USD", "EUR", "BTC"], index=0
 st.sidebar.subheader("Timeframe Selection")
 
 time_unit = st.sidebar.selectbox("Unit", ["Minutes", "Hours", "Days"], index=1)
-amount = st.sidebar.number_input(f"Number of {time_unit.lower()}", min_value=1, max_value=1000, value=90)
+amount = st.sidebar.number_input(f"Number of {time_unit.lower()}", min_value=1, max_value=1000, value=200)
 
 timeframe_map = {
     "Minutes": "1m",
