@@ -26,22 +26,30 @@ symbol = symbol_names[symbol_name]
 
 currency = st.sidebar.selectbox("Quote Currency", ["USD", "EUR", "BTC"], index=0)
 
-st.sidebar.subheader("Select Timeframe")
-timeframe_options = {
-    "1 Minute": "1m",
-    "5 Minutes": "5m",
-    "15 Minutes": "15m",
-    "1 Hour": "1h",
-    "4 Hours": "4h",
-    "1 Day": "1d"
-}
-selected_tf = st.sidebar.selectbox("Timeframe", list(timeframe_options.keys()), index=3)
-timeframe = timeframe_options[selected_tf]
+st.sidebar.subheader("Timeframe Selection")
 
-days_to_fetch = 90
+time_unit = st.sidebar.selectbox("Unit", ["Minutes", "Hours", "Days"], index=1)
+amount = st.sidebar.number_input(f"Number of {time_unit.lower()}", min_value=1, max_value=1000, value=90)
+
+timeframe_map = {
+    "Minutes": "1m",
+    "Hours": "1h",
+    "Days": "1d"
+}
+timeframe = timeframe_map[time_unit]
+
+if time_unit == "Minutes":
+    total_days = amount / (60 * 24)
+elif time_unit == "Hours":
+    total_days = amount / 24
+else:
+    total_days = amount
 
 @st.cache_data(show_spinner=False)
 def fetch_data_kraken(symbol, currency, days, timeframe='1h'):
+    """
+    Fetch OHLCV data from Kraken using ccxt.
+    """
     exchange = ccxt.kraken()
     market_symbol = f"{symbol}/{currency}"
     since = exchange.parse8601((pd.Timestamp.utcnow() - pd.Timedelta(days=days)).isoformat())
@@ -56,10 +64,11 @@ def fetch_data_kraken(symbol, currency, days, timeframe='1h'):
             all_data += data
             since = data[-1][0] + 1
             time.sleep(1.5)
-            if len(data) < limit:
-                break
         except Exception as e:
             st.warning(f"Error fetching data: {e}")
+            break
+
+        if len(data) < limit:
             break
 
     if not all_data:
@@ -71,7 +80,7 @@ def fetch_data_kraken(symbol, currency, days, timeframe='1h'):
     df = df.set_index("timestamp").sort_index()
     return df
 
-df = fetch_data_kraken(symbol, currency, days_to_fetch, timeframe=timeframe)
+df = fetch_data_kraken(symbol, currency, total_days, timeframe)
 
 def plot_gpr(df):
     data = df['close'].values
