@@ -48,34 +48,31 @@ else:
 @st.cache_data(show_spinner=False)
 def fetch_data_kraken(symbol, currency, days, timeframe='1h'):
     """
-    Fetch OHLCV data from Kraken using ccxt.
+    FAST version: Fetch recent OHLCV data from Kraken using ccxt.
+    No pagination or sleeping — only the most recent candles are fetched.
     """
     exchange = ccxt.kraken()
     market_symbol = f"{symbol}/{currency}"
+
+    max_days = 30 if timeframe == "1h" else 365
+    if days > max_days:
+        days = max_days
+        st.warning(f"Limiting request to {max_days} days for performance.")
+
     since = exchange.parse8601((pd.Timestamp.utcnow() - pd.Timedelta(days=days)).isoformat())
-    all_data = []
-    limit = 720
+    limit = 1000
 
-    while True:
-        try:
-            data = exchange.fetch_ohlcv(market_symbol, timeframe=timeframe, since=since, limit=limit)
-            if not data:
-                break
-            all_data += data
-            since = data[-1][0] + 1
-            time.sleep(1.5)
-        except Exception as e:
-            st.warning(f"Error fetching data: {e}")
-            break
+    try:
+        data = exchange.fetch_ohlcv(market_symbol, timeframe=timeframe, since=since, limit=limit)
+    except Exception as e:
+        st.error(f"Error fetching data: {e}")
+        st.stop()
 
-        if len(data) < limit:
-            break
-
-    if not all_data:
+    if not data or len(data) == 0:
         st.error(f"No data returned for {market_symbol}")
         st.stop()
 
-    df = pd.DataFrame(all_data, columns=["timestamp", "open", "high", "low", "close", "volume"])
+    df = pd.DataFrame(data, columns=["timestamp", "open", "high", "low", "close", "volume"])
     df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms", utc=True)
     df = df.set_index("timestamp").sort_index()
     return df
